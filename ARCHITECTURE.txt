@@ -1,0 +1,169 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║           ARQUITETURA COMPLETA - FEED DE CONTEÚDO (PIBB G12)                ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        APLICAÇÃO MOBILE (React Native)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  app/index.tsx (FeedScreen)                                               │
+│  ├─ Imports: useFeedPosts hook, FeedList component                        │
+│  └─ Renderiza:                                                            │
+│     ├─ Header com nome do usuário                                         │
+│     ├─ Vídeo YouTube                                                      │
+│     ├─ Grid de Eventos                                                    │
+│     └─ 🎯 FEED DE POSTS (Nova seção)                                      │
+│        │                                                                  │
+│        ├─ FeedList Component                                              │
+│        │  ├─ useFeedPosts Hook → { posts, loading, error, retry }        │
+│        │  └─ Estados:                                                     │
+│        │     ├─ Loading: ActivityIndicator + "Carregando posts..."       │
+│        │     ├─ Error: "⚠️ Erro ao carregar" + botão Retry               │
+│        │     ├─ Empty: "📭 Nenhum post disponível"                       │
+│        │     └─ Success: FlatList de posts                                │
+│        │        └─ Cada item: FeedCard Component                          │
+│        │           ├─ Imagem destaque (opcional)                          │
+│        │           ├─ Título em negrito                                   │
+│        │           ├─ Data formatada (DD/MM/YYYY HH:mm)                  │
+│        │           ├─ Conteúdo truncado (150 chars + "...")              │
+│        │           └─ Botão "Ler mais →"                                 │
+│        │                                                                  │
+│        └─ Estilo: Theme.ts colors (COLORS, SPACING, RADIUS)             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              ⬇️ HTTP GET /posts
+                         (axios via apiClient)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SERVIÇO API (Axios Client)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  src/shared/service/api/                                                  │
+│  ├─ client.ts → baseURL: http://localhost:3000                            │
+│  │              (Configuração automática por plataforma)                   │
+│  └─ posts.api.ts → Métodos HTTP                                          │
+│     ├─ getAll() → GET /posts                                              │
+│     ├─ getById(id) → GET /posts/:id                                       │
+│     ├─ create(data) → POST /posts                                         │
+│     ├─ update(id, data) → PUT /posts/:id                                  │
+│     └─ delete(id) → DELETE /posts/:id                                     │
+│                                                                             │
+│  Hook: useFeedPosts.ts                                                     │
+│  ├─ Chama: postsAPI.getAll()                                              │
+│  ├─ Estados: { posts, loading, error, retry }                            │
+│  ├─ useCallback: fetchPosts() → API call                                  │
+│  └─ useEffect: Executa fetchPosts ao montar                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              ⬇️ TCP/IP Port 3000
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SERVIDOR BACKEND (NestJS)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  app.module.ts                                                            │
+│  ├─ Imports: PostsModule + outros módulos                                 │
+│  └─ Registra: PostsController, PostsService                               │
+│                                                                             │
+│  src/posts/ Module                                                         │
+│  ├─ posts.module.ts                                                       │
+│  │  └─ imports: [PrismaModule]                                            │
+│  │  └─ controllers: [PostsController]                                     │
+│  │  └─ providers: [PostsService]                                          │
+│  │                                                                         │
+│  ├─ posts.controller.ts                                                   │
+│  │  ├─ @Controller('posts') decorator                                     │
+│  │  ├─ @Get() → findAll() → Listar posts                                 │
+│  │  ├─ @Get(':id') → findOne(id)                                         │
+│  │  ├─ @Post() → create(dto) [Admin]                                     │
+│  │  ├─ @Put(':id') → update(id, dto) [Admin]                             │
+│  │  └─ @Delete(':id') → remove(id) [Admin]                               │
+│  │     └─ ValidationPipe: Valida DTOs automaticamente                     │
+│  │                                                                         │
+│  ├─ posts.service.ts                                                      │
+│  │  ├─ Injeta: PrismaService                                              │
+│  │  ├─ Métodos:                                                           │
+│  │  │  ├─ create(dto)                                                     │
+│  │  │  │  └─ await prisma.post.create({ data })                          │
+│  │  │  │                                                                  │
+│  │  │  ├─ findAll()                                                       │
+│  │  │  │  └─ await prisma.post.findMany({                                │
+│  │  │  │     where: { published: true },                                  │
+│  │  │  │     orderBy: { createdAt: 'desc' }                               │
+│  │  │  │  })                                                              │
+│  │  │  │                                                                  │
+│  │  │  ├─ findOne(id)                                                     │
+│  │  │  │  └─ await prisma.post.findUnique({ where: { id } })            │
+│  │  │  │                                                                  │
+│  │  │  ├─ update(id, dto)                                                │
+│  │  │  │  └─ await prisma.post.update({ where: { id }, data })          │
+│  │  │  │                                                                  │
+│  │  │  └─ remove(id)                                                      │
+│  │  │     └─ await prisma.post.delete({ where: { id } })                │
+│  │  │                                                                     │
+│  │  └─ Tratamento: Try/catch + exceções NestJS                            │
+│  │                 (NotFoundException, InternalServerErrorException)      │
+│  │                                                                         │
+│  └─ dto/                                                                  │
+│     ├─ create-post.dto.ts                                                │
+│     │  ├─ @IsString() title: string (3-255 chars, optional)              │
+│     │  ├─ @IsNotEmpty() @IsString() content: string (5+ chars)           │
+│     │  └─ @IsString() imageUrl: string (optional)                        │
+│     │                                                                     │
+│     └─ update-post.dto.ts (PartialType de CreatePostDto)                 │
+│        └─ Todos os campos opcionais para update                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              ⬇️ Prisma ORM
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        BANCO DE DADOS (PostgreSQL)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  prisma/schema.prisma                                                      │
+│  ├─ datasource: PostgreSQL (Supabase)                                      │
+│  ├─ model Post {                                                          │
+│  │   id        String   @id @default(uuid())  ← Primary Key UUID         │
+│  │   title     String?  ← Título opcional                                │
+│  │   content   String   @db.Text ← Texto longo                          │
+│  │   imageUrl  String?  ← URL imagem destaque                            │
+│  │   published Boolean  @default(true) ← Flag visibilidade              │
+│  │   createdAt DateTime @default(now()) ← Timestamp auto                │
+│  │   updatedAt DateTime @updatedAt ← Timestamp atualização              │
+│  │  }                                                                     │
+│  │                                                                        │
+│  └─ Migration: 20251228_create_posts_table/migration.sql                │
+│     └─ CREATE TABLE posts (...)                                          │
+│                                                                             │
+│  Seed: prisma/seed.ts                                                     │
+│  └─ Popula com 5 posts mockados:                                         │
+│     ├─ 🙏 Culto de Celebração - Domingo                                   │
+│     ├─ 📚 Estudo Bíblico - G12                                            │
+│     ├─ 🎓 Universidade Crista                                             │
+│     ├─ 🤝 Conectando-se - Mapa de Células                                │
+│     └─ ✨ Eventos Especiais Este Mês                                      │
+│                                                                             │
+│  Comando: npx prisma db seed                                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                          FLUXO DE DADOS (REQUEST)                            ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║  1. App carrega index.tsx (FeedScreen)                                       ║
+║  2. Component monta → useEffect em useFeedPosts hook                         ║
+║  3. useEffect chama: fetchPosts()                                            ║
+║  4. fetchPosts() chamada: postsAPI.getAll()                                  ║
+║  5. postsAPI.getAll() faz: apiClient.get('/posts')                           ║
+║  6. Axios envia: GET http://localhost:3000/posts                             ║
+║  7. NestJS recebe → PostsController.findAll()                                ║
+║  8. PostsService.findAll() querya: prisma.post.findMany(...)                ║
+║  9. Prisma traduz para SQL: SELECT * FROM posts WHERE published=true...      ║
+║  10. PostgreSQL retorna: [Post[], Post[], ...]                               ║
+║  11. NestJS retorna JSON: { status, message, data, count }                   ║
+║  12. Axios parseia response.data.data                                        ║
+║  13. Hook setState({ posts, loading: 'success' })                            ║
+║  14. Component re-render com posts                                           ║
+║  15. FeedList renderiza FlatList                                             ║
+║  16. FlatList renderiza cada item com FeedCard                               ║
+║  17. Usuário vê feed de posts!                                               ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
