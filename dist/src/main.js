@@ -16,14 +16,10 @@ async function bootstrap() {
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     });
-    await app.listen(3000, '0.0.0.0');
-    console.log('\n🚀 Backend rodando com sucesso!\n');
-    console.log('📍 Endpoints disponíveis:');
-    console.log('  🌐 Web:              http://localhost:3000');
-    console.log('  🤖 Android Emulator: http://10.0.2.2:3000');
-    console.log('  📱 Celular Físico:   http://192.168.1.4:3000');
-    console.log('\n✅ CORS habilitado para todas as origens');
-    console.log('✅ Escutando em 0.0.0.0 (acessível na rede local)\n');
+    await app.listen(process.env.PORT || 3000, '0.0.0.0');
+    const port = process.env.PORT || 3000;
+    console.log(`\n🚀 Backend rodando na porta ${port}!`);
+    console.log('📍 http://localhost:' + port);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map
